@@ -193,7 +193,8 @@ class TestRSSEntryModel(TestCase):
         entry = RSSEntry.objects.create(
             feed=self.feed,
             title='Test Article',
-            link='https://techcrunch.com/test'
+            link='https://techcrunch.com/test',
+            published_at=django_timezone.now()
         )
 
         # When & Then
@@ -206,11 +207,13 @@ class TestRSSEntryModel(TestCase):
             feed=self.feed,
             title='Test Article',
             link='https://techcrunch.com/test',
-            keywords=['AI', 'technology', 'innovation']
+            published_at=django_timezone.now()
         )
+        entry.set_keywords(['AI', 'technology', 'innovation'])
+        entry.save()
 
         # When & Then
-        self.assertEqual(entry.keywords, ['AI', 'technology', 'innovation'])
+        self.assertEqual(entry.keywords_list, ['AI', 'technology', 'innovation'])
 
 
 class TestRSSFeedError(TestCase):
