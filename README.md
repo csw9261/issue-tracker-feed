@@ -174,6 +174,7 @@ pytest tests/test_rss_crawler.py::TestRSSCrawlerService::test_crawl_rss_feed_suc
 - [ ] 대시보드 시각화
 
 ### 📋 예정된 기능
+- [ ] MCP 서버 구축
 - [ ] 뉴스 요약 AI 기능
 - [ ] 키워드 분석 고도화
 - [ ] 사용자 인증 시스템
