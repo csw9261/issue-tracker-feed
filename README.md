@@ -300,6 +300,7 @@ celery -A issue_tracker inspect stats
 - [ ] HTML 템플릿 및 프론트엔드 UI
 - [ ] Docker 개발 환경 구성
 
+<<<<<<< HEAD
 ### 📋 계획된 기능
 - [ ] 사용자 인증 및 권한 관리
 - [ ] 다중 RSS 피드 지원
@@ -307,7 +308,63 @@ celery -A issue_tracker inspect stats
 - [ ] 알림 시스템 (이메일, Slack)
 - [ ] 관리자 대시보드 개선
 - [ ] 성능 최적화 및 캐싱
+=======
+### 📋 예정된 기능
+- [ ] MCP 서버 구축
+- [ ] 뉴스 요약 AI 기능
+- [ ] 키워드 분석 고도화
+- [ ] 사용자 인증 시스템
+- [ ] 모바일 반응형 UI
+- [ ] 성능 모니터링
+- [ ] CI/CD 파이프라인
+>>>>>>> 27c30292bca461c4b48d439490d0775f5a20168b
 
 ---
 
+<<<<<<< HEAD
 **🚀 TechCrunch RSS 이슈 트래커로 기술 뉴스를 체계적으로 관리하세요!**
+=======
+### PostgreSQL 연결 오류
+```bash
+# 컨테이너 상태 확인
+docker-compose ps
+
+# 컨테이너 재시작
+docker-compose restart postgres
+```
+
+### Celery 연결 오류
+```bash
+# Redis 컨테이너 확인
+docker-compose ps redis
+
+# Celery 재시작
+celery -A issue_tracker worker --loglevel=info
+```
+
+## 📝 개발 노트
+
+### TDD 방식으로 개발
+1. 테스트 작성 (`tests/test_rss_crawler.py`)
+2. 기능 구현 (`rss_crawler/services.py`)
+3. 테스트 통과 확인
+4. 리팩토링
+
+### 다음 단계
+1. 프론트엔드 템플릿 구현
+2. Elasticsearch 검색 기능 추가
+3. 알림 시스템 구현
+4. 성능 최적화
+
+## 🤝 기여 방법
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## 📄 라이선스
+
+이 프로젝트는 MIT 라이선스 하에 배포됩니다. 
+>>>>>>> 27c30292bca461c4b48d439490d0775f5a20168b
