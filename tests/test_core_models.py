@@ -4,9 +4,10 @@ from datetime import datetime, timezone
 from django.test import TestCase
 from django.utils import timezone as django_timezone
 
-from rss_crawler.models import RSSFeed, RSSEntry
-from rss_crawler.services import RSSCrawlerService
-from rss_crawler.exceptions import RSSFeedError
+# 새로운 구조로 import 변경
+from core.models import RSSFeed, RSSEntry, RSSProcessingLog
+from crawler.services import RSSCrawlerService
+from crawler.exceptions import RSSFeedError
 
 
 class TestRSSCrawlerService(TestCase):
@@ -24,14 +25,14 @@ class TestRSSCrawlerService(TestCase):
             'entries': [
                 {
                     'title': 'Test Article 1',
-                    'link': 'https://techcrunch.com/test1',
+                    'link': 'https://techcrunch.com/2025/07/30/github-copilot-crosses-20-million-all-time-users',
                     'description': 'Test description 1',
                     'published': '2024-01-15T10:00:00Z',
                     'author': 'Test Author 1'
                 },
                 {
                     'title': 'Test Article 2',
-                    'link': 'https://techcrunch.com/test2',
+                    'link': 'https://techcrunch.com/2025/07/30/kleiner-perkins-backed-ambiq-pops-on-ipo-debut',
                     'description': 'Test description 2',
                     'published': '2024-01-15T11:00:00Z',
                     'author': 'Test Author 2'
@@ -39,7 +40,7 @@ class TestRSSCrawlerService(TestCase):
             ]
         }
 
-    @patch('rss_crawler.services.feedparser')
+    @patch('crawler.services.feedparser')
     def test_crawl_rss_feed_success(self, mock_feedparser):
         """RSS 피드 크롤링 성공 테스트"""
         # Given
@@ -52,13 +53,20 @@ class TestRSSCrawlerService(TestCase):
         # When
         result = self.service.crawl_rss_feed('https://techcrunch.com/feed/')
 
+        # Debug: result 값 확인
+        print(f"\n=== DEBUG: result 값 ===")
+        print(f"result type: {type(result)}")
+        print(f"result length: {len(result)}")
+        print(f"result content: {result}")
+        print("=" * 30)
+
         # Then
         self.assertEqual(len(result), 2)
         self.assertEqual(result[0]['title'], 'Test Article 1')
         self.assertEqual(result[1]['title'], 'Test Article 2')
         mock_feedparser.parse.assert_called_once_with('https://techcrunch.com/feed/')
 
-    @patch('rss_crawler.services.feedparser')
+    @patch('crawler.services.feedparser')
     def test_crawl_rss_feed_invalid_feed(self, mock_feedparser):
         """잘못된 RSS 피드 처리 테스트"""
         # Given
@@ -71,7 +79,7 @@ class TestRSSCrawlerService(TestCase):
         with self.assertRaises(RSSFeedError):
             self.service.crawl_rss_feed('https://invalid-feed.com/feed/')
 
-    @patch('rss_crawler.services.feedparser')
+    @patch('crawler.services.feedparser')
     def test_crawl_rss_feed_network_error(self, mock_feedparser):
         """네트워크 오류 처리 테스트"""
         # Given
@@ -214,6 +222,35 @@ class TestRSSEntryModel(TestCase):
 
         # When & Then
         self.assertEqual(entry.keywords_list, ['AI', 'technology', 'innovation'])
+
+
+class TestRSSProcessingLogModel(TestCase):
+    """RSS 처리 로그 모델 테스트"""
+
+    def setUp(self):
+        """테스트 설정"""
+        self.feed = RSSFeed.objects.create(
+            title='Test Feed',
+            url='https://techcrunch.com/feed/'
+        )
+
+    def test_rss_processing_log_creation(self):
+        """RSS 처리 로그 생성 테스트"""
+        # Given & When
+        log = RSSProcessingLog.objects.create(
+            feed=self.feed,
+            status='success',
+            entries_processed=10,
+            entries_new=5,
+            processing_time=2.5
+        )
+
+        # Then
+        self.assertEqual(log.feed, self.feed)
+        self.assertEqual(log.status, 'success')
+        self.assertEqual(log.entries_processed, 10)
+        self.assertEqual(log.entries_new, 5)
+        self.assertEqual(log.processing_time, 2.5)
 
 
 class TestRSSFeedError(TestCase):

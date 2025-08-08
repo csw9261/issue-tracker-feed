@@ -1,89 +1,12 @@
-from django.shortcuts import render
 from django.http import JsonResponse
 from django.views import View
-from django.views.generic import ListView, DetailView
 from django.utils import timezone
-from django.db.models import Count, Q
+from django.db.models import Count
 from datetime import timedelta
 import json
 
-from .models import RSSFeed, RSSEntry, RSSProcessingLog
-from .services import RSSCrawlerService
-from .tasks import crawl_rss_feed_task
-
-
-class RSSFeedListView(ListView):
-    """RSS 피드 목록 뷰"""
-    model = RSSFeed
-    template_name = 'rss_crawler/feed_list.html'
-    context_object_name = 'feeds'
-    
-    def get_queryset(self):
-        return RSSFeed.objects.filter(is_active=True).order_by('-created_at')
-
-
-class RSSFeedDetailView(DetailView):
-    """RSS 피드 상세 뷰"""
-    model = RSSFeed
-    template_name = 'rss_crawler/feed_detail.html'
-    context_object_name = 'feed'
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['recent_entries'] = self.object.entries.order_by('-published_at')[:10]
-        context['processing_logs'] = self.object.processing_logs.order_by('-created_at')[:5]
-        return context
-
-
-class RSSEntryListView(ListView):
-    """RSS 엔트리 목록 뷰"""
-    model = RSSEntry
-    template_name = 'rss_crawler/entry_list.html'
-    context_object_name = 'entries'
-    paginate_by = 20
-    
-    def get_queryset(self):
-        queryset = RSSEntry.objects.select_related('feed').order_by('-published_at')
-        
-        # 필터링
-        feed_id = self.request.GET.get('feed')
-        if feed_id:
-            queryset = queryset.filter(feed_id=feed_id)
-        
-        period = self.request.GET.get('period')
-        if period:
-            today = timezone.now().date()
-            if period == 'today':
-                queryset = queryset.filter(published_at__date=today)
-            elif period == 'this_week':
-                week_ago = today - timedelta(days=7)
-                queryset = queryset.filter(published_at__date__gte=week_ago)
-            elif period == 'this_month':
-                month_ago = today - timedelta(days=30)
-                queryset = queryset.filter(published_at__date__gte=month_ago)
-        
-        keyword = self.request.GET.get('keyword')
-        if keyword:
-            queryset = queryset.filter(keywords__icontains=keyword)
-        
-        return queryset
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['feeds'] = RSSFeed.objects.filter(is_active=True)
-        context['periods'] = [
-            ('today', '오늘'),
-            ('this_week', '이번 주'),
-            ('this_month', '이번 달'),
-        ]
-        return context
-
-
-class RSSEntryDetailView(DetailView):
-    """RSS 엔트리 상세 뷰"""
-    model = RSSEntry
-    template_name = 'rss_crawler/entry_detail.html'
-    context_object_name = 'entry'
+from core.models import RSSFeed, RSSEntry, RSSProcessingLog
+from crawler.tasks import crawl_rss_feed_task
 
 
 class CrawlRSSView(View):
@@ -196,29 +119,103 @@ class RSSSummaryView(View):
             }, status=500)
 
 
-class RSSProcessingLogListView(ListView):
-    """RSS 처리 로그 목록 뷰"""
-    model = RSSProcessingLog
-    template_name = 'rss_crawler/log_list.html'
-    context_object_name = 'logs'
-    paginate_by = 20
+class RSSEntriesAPIView(View):
+    """RSS 엔트리 API 뷰"""
     
-    def get_queryset(self):
-        return RSSProcessingLog.objects.select_related('feed').order_by('-created_at')
+    def get(self, request):
+        """RSS 엔트리 목록을 JSON으로 반환"""
+        try:
+            # 쿼리 파라미터 처리
+            feed_id = request.GET.get('feed')
+            period = request.GET.get('period')
+            keyword = request.GET.get('keyword')
+            limit = int(request.GET.get('limit', 20))
+            
+            queryset = RSSEntry.objects.select_related('feed').order_by('-published_at')
+            
+            # 필터링
+            if feed_id:
+                queryset = queryset.filter(feed_id=feed_id)
+            
+            if period:
+                today = timezone.now().date()
+                if period == 'today':
+                    queryset = queryset.filter(published_at__date=today)
+                elif period == 'this_week':
+                    week_ago = today - timedelta(days=7)
+                    queryset = queryset.filter(published_at__date__gte=week_ago)
+                elif period == 'this_month':
+                    month_ago = today - timedelta(days=30)
+                    queryset = queryset.filter(published_at__date__gte=month_ago)
+            
+            if keyword:
+                queryset = queryset.filter(keywords__icontains=keyword)
+            
+            entries = queryset[:limit]
+            
+            # JSON 직렬화
+            entries_data = [
+                {
+                    'id': entry.id,
+                    'title': entry.title,
+                    'link': entry.link,
+                    'description': entry.clean_description[:200] + '...' if len(entry.clean_description) > 200 else entry.clean_description,
+                    'author': entry.author,
+                    'published_at': entry.published_at.isoformat(),
+                    'keywords': entry.keywords_list,
+                    'feed': {
+                        'id': entry.feed.id,
+                        'title': entry.feed.title,
+                        'url': entry.feed.url
+                    },
+                    'time_period': entry.get_time_period()
+                }
+                for entry in entries
+            ]
+            
+            return JsonResponse({
+                'status': 'success',
+                'data': entries_data,
+                'count': len(entries_data)
+            })
+            
+        except Exception as e:
+            return JsonResponse({
+                'status': 'error',
+                'message': str(e)
+            }, status=500)
+
+
+class RSSFeedsAPIView(View):
+    """RSS 피드 API 뷰"""
     
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        
-        # 통계 정보
-        total_logs = RSSProcessingLog.objects.count()
-        success_logs = RSSProcessingLog.objects.filter(status='success').count()
-        error_logs = RSSProcessingLog.objects.filter(status='error').count()
-        
-        context['stats'] = {
-            'total': total_logs,
-            'success': success_logs,
-            'error': error_logs,
-            'success_rate': success_logs / max(total_logs, 1) * 100
-        }
-        
-        return context 
+    def get(self, request):
+        """RSS 피드 목록을 JSON으로 반환"""
+        try:
+            feeds = RSSFeed.objects.filter(is_active=True).order_by('-created_at')
+            
+            feeds_data = [
+                {
+                    'id': feed.id,
+                    'title': feed.title,
+                    'url': feed.url,
+                    'description': feed.description,
+                    'is_active': feed.is_active,
+                    'last_crawled_at': feed.last_crawled_at.isoformat() if feed.last_crawled_at else None,
+                    'entry_count': feed.entries.count(),
+                    'recent_entry_count': feed.get_recent_entries(7).count()
+                }
+                for feed in feeds
+            ]
+            
+            return JsonResponse({
+                'status': 'success',
+                'data': feeds_data,
+                'count': len(feeds_data)
+            })
+            
+        except Exception as e:
+            return JsonResponse({
+                'status': 'error',
+                'message': str(e)
+            }, status=500)

@@ -130,4 +130,4 @@ class RSSProcessingLog(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        return f"{self.feed.title} - {self.get_status_display()} ({self.created_at})" 
+        return f"{self.feed.title} - {self.get_status_display()} ({self.created_at})"

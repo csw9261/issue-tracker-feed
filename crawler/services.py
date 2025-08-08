@@ -7,7 +7,7 @@ from django.utils import timezone as django_timezone
 from django.conf import settings
 
 from .exceptions import RSSFeedError, RSSProcessingError
-from .models import RSSFeed, RSSEntry, RSSProcessingLog
+from core.models import RSSFeed, RSSEntry, RSSProcessingLog
 
 
 class RSSCrawlerService:

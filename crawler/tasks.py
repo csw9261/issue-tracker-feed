@@ -1,9 +1,10 @@
 from celery import shared_task
 from django.conf import settings
 from django.utils import timezone
+from datetime import timedelta
 
 from .services import RSSCrawlerService
-from .models import RSSFeed, RSSProcessingLog
+from core.models import RSSFeed, RSSEntry, RSSProcessingLog
 
 
 @shared_task(bind=True)
@@ -55,12 +56,9 @@ def cleanup_old_entries_task():
     """
     오래된 RSS 엔트리를 정리하는 태스크
     """
-    from datetime import timedelta
-    
     # 30일 이상 된 엔트리 삭제
     cutoff_date = timezone.now() - timedelta(days=30)
     
-    from .models import RSSEntry
     deleted_count = RSSEntry.objects.filter(
         published_at__lt=cutoff_date
     ).delete()[0]
@@ -76,12 +74,8 @@ def generate_daily_summary_task():
     """
     일일 요약을 생성하는 태스크
     """
-    from datetime import timedelta
-    
     today = timezone.now().date()
     yesterday = today - timedelta(days=1)
-    
-    from .models import RSSEntry
     
     # 어제 발행된 엔트리들 조회
     yesterday_entries = RSSEntry.objects.filter(
@@ -99,7 +93,7 @@ def generate_daily_summary_task():
     # 키워드 통계
     keyword_stats = {}
     for entry in yesterday_entries:
-        for keyword in entry.keywords:
+        for keyword in entry.keywords_list:
             keyword_stats[keyword] = keyword_stats.get(keyword, 0) + 1
     
     summary['top_keywords'] = sorted(
@@ -128,8 +122,6 @@ def health_check_task():
     """
     RSS 크롤러 상태를 확인하는 태스크
     """
-    from .models import RSSFeed, RSSProcessingLog
-    
     # 최근 24시간 내 처리 로그 확인
     yesterday = timezone.now() - timedelta(hours=24)
     recent_logs = RSSProcessingLog.objects.filter(

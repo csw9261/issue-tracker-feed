@@ -26,7 +26,11 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django_celery_beat',
     'django_celery_results',
-    'rss_crawler',
+    # 새로운 앱들 (기능별 분리)
+    'core',           # 공통 모델/서비스
+    'frontend',       # 웹 페이지 (HTML)
+    'api',           # REST API (JSON)
+    'crawler',       # RSS 크롤링
 ]
 
 MIDDLEWARE = [
